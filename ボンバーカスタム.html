@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>現在の懸賞金 (V-Bucks)</title>
+<style>
+  html, body {
+    height:100%; margin:0; background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    font-family:"Segoe UI","Arial",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* --- カード背景 --- */
+  .card {
+    background:rgba(255,255,255,1.0); /* 白背景の透け具合 */
+    border-radius:24px;
+    width:800px;
+    padding:40px 20px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.25);
+    text-align:center;
+    user-select:none;
+    pointer-events:none;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+
+  #label {
+    font-size:60px;
+    font-weight:900;
+    font-family:"Segoe UI Black","Arial Black","Arial","Helvetica",sans-serif;
+    margin-bottom:16px;
+    color:#000;
+    text-shadow:none;
+  }
+
+  #value {
+    font-size:110px;
+    font-weight:800;
+    display:inline-block;
+    min-width:360px;
+    line-height:1;
+    transform-origin:center;
+    transition:text-shadow 220ms, transform 220ms, color 220ms;
+  }
+
+  @keyframes pop {
+    0% { transform:scale(0.78); opacity:0; } 
+    60% { transform:scale(1.08); opacity:1; } 
+    100% { transform:scale(1); opacity:1; }
+  }
+
+  @keyframes blink {
+    0% { opacity:1; filter:drop-shadow(0 0 6px rgba(255,0,0,0.6)); }
+    50% { opacity:0.25; filter:drop-shadow(0 0 18px rgba(255,150,150,0.9)); }
+    100% { opacity:1; filter:drop-shadow(0 0 6px rgba(255,0,0,0.6)); }
+  }
+
+  .blink { animation:blink 600ms linear infinite; }
+
+  @media (max-width:600px) {
+    #label{font-size:36px;}
+    #value{font-size:64px; min-width:200px;}
+    .card{width:320px; padding:28px 16px;}
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div id="label">現在の懸賞金</div>
+    <div id="value" aria-live="polite">読み込み中...</div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const p10000 = 0.01;
+  const basePercents = {
+    0:    30.0,
+    200:  20.0,
+    400:  18.0,
+    500:  15.0,
+    800:   7.0,
+    1000:  5.0,
+    1200:  3.0,
+    1500:  2.0
+  };
+
+  const sumBase = Object.values(basePercents).reduce((s,v)=>s+v,0);
+  const probs = {};
+  for (const k of Object.keys(basePercents)) {
+    probs[parseInt(k,10)] = (basePercents[k] / sumBase) * (1 - p10000);
+  }
+  probs[10000] = p10000;
+
+  const styleMap = {
+    0:      { color:"#777777", glow:"0 0 6px rgba(0,0,0,0.6)" },
+    200:    { color:"#3399FF", glow:"0 0 8px rgba(51,153,255,0.18)" },
+    400:    { color:"#33CCFF", glow:"0 0 10px rgba(51,204,255,0.2)" },
+    500:    { color:"#33CC66", glow:"0 0 10px rgba(51,204,102,0.16)" },
+    800:    { color:"#99CC33", glow:"0 0 12px rgba(153,204,51,0.18)" },
+    1000:   { color:"#FFD700", glow:"0 0 14px rgba(255,215,0,0.25)" },
+    1200:   { color:"#FFAA00", glow:"0 0 16px rgba(255,170,0,0.28)" },
+    1500:   { color:"#FF5500", glow:"0 0 18px rgba(255,85,0,0.34)" },
+    10000:  { color:"#FF0000", glow:"0 0 20px rgba(255,0,0,0.5)" }
+  };
+
+  const valueEl = document.getElementById('value');
+  let previousAmount = null;
+  let blinkTimeout = null;
+
+  function chooseWeighted() {
+    const items = Object.keys(probs).map(k => ({amount: parseInt(k), p: probs[k]}));
+    const total = items.reduce((s,i)=>s+i.p,0);
+
+    let r = Math.random() * total;
+    for (const it of items) {
+      if (r < it.p) {
+        previousAmount = it.amount;
+        return it.amount;
+      }
+      r -= it.p;
+    }
+  }
+
+  function formatAmount(n) {
+    return n + " V-Bucks";
+  }
+
+  function showAmount(amount) {
+    valueEl.classList.remove('blink');
+    valueEl.style.animation = 'none';
+    void valueEl.offsetWidth;
+    valueEl.textContent = formatAmount(amount);
+
+    const s = styleMap[amount] || { color:"#FFFFFF", glow:"0 0 8px rgba(255,255,255,0.12)" };
+    valueEl.style.color = s.color;
+    valueEl.style.textShadow = s.glow;
+    valueEl.style.animation = 'pop 360ms cubic-bezier(.2,.8,.2,1)';
+
+    if (amount === 10000) {
+      if (blinkTimeout) clearTimeout(blinkTimeout);
+      blinkTimeout = setTimeout(() => valueEl.classList.add('blink'), 380);
+    }
+  }
+
+  // 初回表示
+  showAmount(chooseWeighted());
+
+  const INTERVAL_MS = 10000;
+  setInterval(() => {
+    const a = chooseWeighted();
+    showAmount(a);
+  }, INTERVAL_MS);
+
+  console.log("Loaded: Expected ≈2x 10000V per 25min match | p(10000)=", probs[10000]);
+});
+</script>
+</body>
+</html>
